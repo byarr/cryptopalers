@@ -5,6 +5,8 @@ const EXPECTED_FREQUENCY: [f32; 26] = [
     0.00978, 0.02360, 0.00150, 0.01974, 0.00074, // V-Z
 ];
 
+pub type ScoredDecrypt = (String, ChiSquaredScore);
+
 pub trait Scorer {
     fn score(&self, input: &str) -> ChiSquaredScore;
 }
