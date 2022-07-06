@@ -57,6 +57,16 @@ fn compare_scores(in1: &ScoredDecrypt, in2: &ScoredDecrypt) -> Ordering {
         .unwrap_or(Ordering::Equal)
 }
 
+fn break_repeated_key_xor(input: &[u8]) {
+    // find a key size or key sizes using hamming distance
+
+    // given a key size (maybe more than one) - split input into key size number of chunks and xor solve them
+
+
+
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
