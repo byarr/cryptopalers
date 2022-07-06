@@ -17,10 +17,14 @@ pub struct ChiSquaredScorer {
 impl Scorer for ChiSquaredScorer {
     fn score(&self, input: &str) -> f32 {
         let counts = letter_counts(input);
-        let len: u32 = counts.iter().sum();
+        if counts.unprintable > 0 {
+            return f32::MAX;
+        }
+
+        let len: u32 = counts.total();
 
         (0..26).map(|idx| {
-            let observed = counts[idx] as f32;
+            let observed = counts.counts[idx] as f32;
             let expected = EXPECTED_FREQUENCY[idx] * len as f32;
             let diff = observed - expected;
             (diff * diff) / expected
@@ -28,17 +32,38 @@ impl Scorer for ChiSquaredScorer {
     }
 }
 
-fn letter_counts(input: &str) -> [u32; 26] {
-    let mut result = [0u32; 26];
+#[derive(Debug, Default)]
+pub struct LetterCounts {
+    counts: [u32; 26],
+    other_printable: u32,
+    unprintable: u32,
+}
 
+impl LetterCounts {
+
+    fn add(&mut self, c: char) {
+        match c {
+            letter if letter.is_ascii_alphabetic() => {
+                let lower = letter.to_ascii_lowercase();
+                let idx = lower as u8 - b'a';
+                self.counts[idx as usize] += 1;
+            }
+            other_printable if other_printable.is_ascii_punctuation() || other_printable.is_ascii_digit() || other_printable.is_ascii_whitespace() => {
+                self.other_printable += 1;
+            }
+            _ => self.unprintable += 1
+        };
+    }
+
+    fn total(&self) -> u32 {
+        self.counts.iter().sum()
+    }
+}
+
+fn letter_counts(input: &str) -> LetterCounts {
     input.chars()
-        .filter(|c| c.is_ascii_alphabetic())
-        .map(|c| c.to_ascii_lowercase())
-        .map(|c| c as u8 - b'a')
-        .for_each(|idx| result[idx as usize] += 1);
+        .fold(LetterCounts::default(), |mut acc, c| {acc.add(c); acc})
 
-
-    result
 }
 
 #[cfg(test)]
@@ -48,8 +73,9 @@ mod tests {
     #[test]
     fn test_letter_counts() {
         let counts = letter_counts("Hhello!!");
-        assert_eq!(counts[0], 0);
-        assert_eq!(counts[7], 2);
+        assert_eq!(counts.counts[0], 0);
+        assert_eq!(counts.counts[7], 2);
+        assert_eq!(counts.total(), 6);
     }
 
 
