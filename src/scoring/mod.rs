@@ -7,7 +7,7 @@ const EXPECTED_FREQUENCY: [f32; 26] = [
 
 
 pub trait Scorer {
-    fn score(&self, input: &str) -> f32;
+    fn score(&self, input: &str) -> ChiSquaredScore;
 }
 
 pub struct ChiSquaredScorer {
@@ -15,21 +15,31 @@ pub struct ChiSquaredScorer {
 }
 
 impl Scorer for ChiSquaredScorer {
-    fn score(&self, input: &str) -> f32 {
+    fn score(&self, input: &str) -> ChiSquaredScore {
         let counts = letter_counts(input);
-        if counts.unprintable > 0 {
-            return f32::MAX;
-        }
 
         let len: u32 = counts.total();
 
-        (0..26).map(|idx| {
+        let chi = (0..26).map(|idx| {
             let observed = counts.counts[idx] as f32;
             let expected = EXPECTED_FREQUENCY[idx] * len as f32;
             let diff = observed - expected;
             (diff * diff) / expected
-        }).sum()
+        }).sum();
+
+        ChiSquaredScore {
+            chi,
+            other_printable: counts.other_printable,
+            unprintable: counts.unprintable,
+        }
     }
+}
+
+#[derive(Debug, Default, Copy, Clone)]
+pub struct ChiSquaredScore {
+    pub chi: f32,
+    pub other_printable: u32,
+    pub unprintable: u32,
 }
 
 #[derive(Debug, Default)]

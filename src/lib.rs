@@ -1,7 +1,9 @@
 use std::cmp::Ordering;
-use crate::scoring::Scorer;
+use crate::scoring::{ChiSquaredScore, Scorer};
 
 mod scoring;
+
+type ScoredDecrypt = (String, ChiSquaredScore);
 
 pub fn hex_to_base_64(hex_str: &str) -> String {
     let vec = hex::decode(hex_str).unwrap();
@@ -17,24 +19,40 @@ pub fn single_byte_xor(input: &[u8], key: u8) -> Vec<u8> {
     input.iter().map(|b| b ^ key).collect()
 }
 
-pub fn guess_single_byte_xor(input: &[u8]) -> Option<(String, f32)> {
+pub fn guess_single_byte_xor(input: &[u8]) -> Vec<ScoredDecrypt> {
 
     let scorer = scoring::ChiSquaredScorer{};
 
-    (0u8..255u8)
+    let mut result: Vec<_> = (0u8..255u8)
         .map(|key| single_byte_xor(input, key))
         .filter_map(|bytes| String::from_utf8(bytes).ok())
         .map(|s| {
             let score = scorer.score(&s);
             (s, score)
         })
-        .min_by(|in1, in2| in1.1.partial_cmp(&in2.1).unwrap_or(Ordering::Equal))
+        .filter(|s| s.1.unprintable == 0)
+        .collect();
+
+    result.sort_by(compare_scores);
+
+    result
 }
 
-pub fn detect_single_byte_xor(cipher: &[Vec<u8>]) -> String {
-    cipher.iter()
-        .filter_map(|c|guess_single_byte_xor(c.as_slice()))
-        .min_by(|in1, in2| in1.1.partial_cmp(&in2.1).unwrap_or(Ordering::Equal)).unwrap().0
+pub fn detect_single_byte_xor(cipher: &[Vec<u8>]) -> Vec<ScoredDecrypt> {
+    let mut result: Vec<_> = cipher.into_iter()
+        .flat_map(|c| guess_single_byte_xor(c.as_slice()).into_iter())
+        .collect();
+
+    result.sort_by(compare_scores);
+    result
+}
+
+fn weighted_chi(chi: &ChiSquaredScore) -> f32 {
+    chi.chi * chi.other_printable as f32
+}
+
+fn compare_scores(in1: &ScoredDecrypt, in2: &ScoredDecrypt) -> Ordering {
+    weighted_chi(&in1.1).partial_cmp(&weighted_chi(&in2.1)).unwrap_or(Ordering::Equal)
 }
 
 #[cfg(test)]
@@ -62,8 +80,8 @@ mod tests {
     #[test]
     fn test_guess_single_byte_zor() {
         let in1 = hex::decode("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736").unwrap();
-        let res = guess_single_byte_xor(&in1).unwrap();
-        assert_eq!(res.0, "Cooking MC's like a pound of bacon");
+        let res = guess_single_byte_xor(&in1);
+        assert_eq!(res[0].0, "Cooking MC's like a pound of bacon");
     }
 
     #[test]
@@ -74,7 +92,8 @@ mod tests {
             .filter_map(|l| hex::decode(l).ok())
             .collect();
         let detected = detect_single_byte_xor(&cipher_texts);
-        println!("{}", detected);
+
+        assert_eq!(detected[0].0, "Now that the party is jumping\n");
     }
 
 }
