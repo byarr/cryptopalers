@@ -39,7 +39,7 @@ pub fn guess_single_byte_xor(input: &[u8]) -> Vec<ScoredDecrypt> {
 }
 
 pub fn detect_single_byte_xor(cipher: &[Vec<u8>]) -> Vec<ScoredDecrypt> {
-    let mut result: Vec<_> = cipher.into_iter()
+    let mut result: Vec<_> = cipher.iter()
         .flat_map(|c| guess_single_byte_xor(c.as_slice()).into_iter())
         .collect();
 
