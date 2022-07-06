@@ -17,7 +17,7 @@ pub fn single_byte_xor(input: &[u8], key: u8) -> Vec<u8> {
     input.iter().map(|b| b ^ key).collect()
 }
 
-pub fn guess_single_byte_xor(input: &[u8]) -> String {
+pub fn guess_single_byte_xor(input: &[u8]) -> Option<(String, f32)> {
 
     let scorer = scoring::ChiSquaredScorer{};
 
@@ -29,11 +29,19 @@ pub fn guess_single_byte_xor(input: &[u8]) -> String {
             (s, score)
         })
         .min_by(|in1, in2| in1.1.partial_cmp(&in2.1).unwrap_or(Ordering::Equal))
-        .unwrap().0
+}
+
+pub fn detect_single_byte_xor(cipher: &[Vec<u8>]) -> String {
+    cipher.iter()
+        .filter_map(|c|guess_single_byte_xor(c.as_slice()))
+        .min_by(|in1, in2| in1.1.partial_cmp(&in2.1).unwrap_or(Ordering::Equal)).unwrap().0
 }
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+    use std::io;
+    use std::io::BufRead;
     use super::*;
 
     #[test]
@@ -54,8 +62,19 @@ mod tests {
     #[test]
     fn test_guess_single_byte_zor() {
         let in1 = hex::decode("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736").unwrap();
-        let string = guess_single_byte_xor(&in1);
-        assert_eq!(string, "Cooking MC's like a pound of bacon");
+        let res = guess_single_byte_xor(&in1).unwrap();
+        assert_eq!(res.0, "Cooking MC's like a pound of bacon");
+    }
+
+    #[test]
+    fn test_detect_single_byte_zor() {
+        let file = File::open("./challenge-data/4.txt").unwrap();
+        let cipher_texts: Vec<_> = io::BufReader::new(file).lines()
+            .filter_map(|l|l.ok())
+            .filter_map(|l| hex::decode(l).ok())
+            .collect();
+        let detected = detect_single_byte_xor(&cipher_texts);
+        println!("{}", detected);
     }
 
 }
