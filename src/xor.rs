@@ -94,22 +94,18 @@ fn break_repeated_key_xor(input: &[u8]) -> Vec<String> {
                 .collect();
             repeating_key_xor(input, &key)
         })
-        .collect();
-
-    let valid_guesses: Vec<String> = guesses
-        .into_iter()
         .map(String::from_utf8)
         .filter_map(Result::ok)
         .collect();
 
-    valid_guesses // TODO would be nice to return a score decrypt
+    guesses // TODO would be nice to return a score decrypt
 }
 
 fn repeated_xor_block_size_score(input: &[u8], key_size: usize) -> (usize, f32) {
-    let b1 = &input[key_size * 0..key_size];
-    let b2 = &input[key_size * 1..key_size * 2];
-    let b3 = &input[key_size * 2..key_size * 3];
-    let b4 = &input[key_size * 3..key_size * 4];
+    let b1 = &input[ 0 .. key_size];
+    let b2 = &input[key_size .. key_size * 2];
+    let b3 = &input[key_size * 2.. key_size * 3];
+    let b4 = &input[key_size * 3.. key_size * 4];
 
     let score = hamming_distance(b1, b2) as f32 / key_size as f32
         + hamming_distance(b1, b3) as f32 / key_size as f32
