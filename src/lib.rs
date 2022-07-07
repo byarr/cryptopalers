@@ -1,6 +1,5 @@
 use crate::scoring::{ChiSquaredScore, Scorer};
 
-
 pub mod scoring;
 pub mod xor;
 
@@ -28,6 +27,9 @@ mod tests {
 
     #[test]
     fn test_hamming_distance() {
-        assert_eq!(hamming_distance("this is a test".as_bytes(), "wokka wokka!!!".as_bytes()), 37);
+        assert_eq!(
+            hamming_distance("this is a test".as_bytes(), "wokka wokka!!!".as_bytes()),
+            37
+        );
     }
 }
