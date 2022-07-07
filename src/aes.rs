@@ -1,11 +1,14 @@
-use openssl::symm::{decrypt, Cipher};
+use openssl::symm::{decrypt, Cipher, encrypt};
 use std::collections::HashMap;
 
-pub fn aes_128_ecb(key: &[u8], input: &[u8]) -> Vec<u8> {
+pub fn aes_128_ecb_decrypt(key: &[u8], input: &[u8]) -> Vec<u8> {
     let t = Cipher::aes_128_ecb();
-    
-
     decrypt(t, key, None, input).unwrap()
+}
+
+pub fn aes_128_ecb_encrypt(key: &[u8], input: &[u8]) -> Vec<u8> {
+    let t = Cipher::aes_128_ecb();
+    encrypt(t, key, None, input).unwrap()
 }
 
 pub fn detect_aes_128_ecb(possible_cipher_texts: Vec<Vec<u8>>) -> (usize, i32) {
@@ -56,7 +59,28 @@ mod tests {
 
         let key = "YELLOW SUBMARINE".as_bytes();
 
-        let plain_text = aes_128_ecb(key, &cipher_text);
+        let plain_text = aes_128_ecb_decrypt(key, &cipher_text);
+
+        let plain = String::from_utf8(plain_text).unwrap();
+
+        assert!(plain.starts_with("I'm back and I'm ringin' the bell "));
+    }
+
+    #[test]
+    fn test_aes_128_ecb_both_ways() {
+        use std::fs::read_to_string;
+        let f = read_to_string("./challenge-data/7.txt").unwrap();
+        let f: String = f.chars().filter(|c| !c.is_ascii_whitespace()).collect();
+
+        let cipher_text = base64::decode(f).unwrap();
+
+        let key = "YELLOW SUBMARINE".as_bytes();
+
+
+        let plain_text = aes_128_ecb_decrypt(key, &cipher_text);
+        let encrypted = aes_128_ecb_encrypt(key, &plain_text);
+        assert_eq!(encrypted, cipher_text);
+
 
         let plain = String::from_utf8(plain_text).unwrap();
 
