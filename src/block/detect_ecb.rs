@@ -1,24 +1,21 @@
-use std::collections::HashMap;
 use openssl::rand::rand_bytes;
+use std::collections::HashMap;
 
-use rand::{Rng, thread_rng};
 use crate::block::{aes_128_cbc_encrypt, aes_128_ecb_encrypt};
+use rand::{thread_rng, Rng};
 
 #[derive(Debug, Default)]
 pub struct HashCount(HashMap<u128, i32>);
 
 impl HashCount {
-
     pub fn new(data: &[u8]) -> Self {
         let block_size_bytes = 16;
         let num_blocks = data.len() / block_size_bytes;
 
-        
-        (0..num_blocks)
-            .fold(HashCount::default(), |mut acc, i| {
-                acc.add_block(&data[i * block_size_bytes..(i + 1) * block_size_bytes]);
-                acc
-            })
+        (0..num_blocks).fold(HashCount::default(), |mut acc, i| {
+            acc.add_block(&data[i * block_size_bytes..(i + 1) * block_size_bytes]);
+            acc
+        })
     }
 
     fn hash_block(block: &[u8]) -> u128 {
@@ -39,7 +36,6 @@ impl HashCount {
     pub fn max_count(&self) -> i32 {
         *self.0.values().max().unwrap_or(&0)
     }
-
 }
 
 pub fn detect_aes_128_ecb(possible_cipher_texts: Vec<Vec<u8>>) -> (usize, HashCount) {
@@ -50,7 +46,6 @@ pub fn detect_aes_128_ecb(possible_cipher_texts: Vec<Vec<u8>>) -> (usize, HashCo
         .max_by_key(|(_idx, count)| count.max_count())
         .unwrap()
 }
-
 
 fn encryption_oracle(input: Vec<u8>) -> Vec<u8> {
     leaky_encryption_oracle(input).0
@@ -93,7 +88,6 @@ fn detect_ecb_cbc() -> (bool, bool) {
     (was_ecb, detected_ecb)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,7 +112,6 @@ mod tests {
         for _i in 0..10 {
             let (was, detect) = detect_ecb_cbc();
             assert_eq!(was, detect)
-
         }
     }
 }

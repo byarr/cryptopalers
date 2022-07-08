@@ -1,6 +1,6 @@
-use rand::Rng;
 use crate::block::aes_128_ecb_encrypt;
 use crate::block::detect_ecb::HashCount;
+use rand::Rng;
 
 const SUFFIX: &str = "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK";
 
@@ -14,9 +14,7 @@ impl Oracle {
         let mut key = [0u8; 16];
         rand::thread_rng().fill(&mut key);
         let suffix = base64::decode(SUFFIX).unwrap();
-        Oracle {
-            key, suffix
-        }
+        Oracle { key, suffix }
     }
 
     fn aes_128_ecb(&self, mut input: Vec<u8>) -> Vec<u8> {
@@ -30,7 +28,7 @@ fn discover_block_size(oracle: &Oracle) -> (usize, usize) {
 
     let (bytes, enc_length) = (2..64)
         .map(|extra| (extra, oracle.aes_128_ecb(vec![b'A'; extra]).len()))
-        .find(|(_data_len, encrypted_len) | (encrypted_len - initial_size) != 0)
+        .find(|(_data_len, encrypted_len)| (encrypted_len - initial_size) != 0)
         .unwrap();
 
     // enc_length = Oracale + bytes + padd (1- blocksize)
@@ -52,7 +50,6 @@ fn byte_at_a_time(oracle: &Oracle) -> Vec<u8> {
     let (block_size, num_bytes) = discover_block_size(oracle);
     let _is_ecb = is_ecb(oracle);
 
-
     // let's use a block size of 4
     // if we pass in AAA then oracle will ecncrpt AAA1 2345 6789                     block_num 0, byte_num 1
     // if we pass in AAAB then oracle will ecncrpt AAAB 1234 5678
@@ -64,28 +61,29 @@ fn byte_at_a_time(oracle: &Oracle) -> Vec<u8> {
     // pass in AAA  == AAA1 2345 of which only the 5 is unknown to me
     // AAA1 234X - match second block
 
-
     let mut guessed_data = Vec::new();
 
     let mut block_num = 0;
     let mut byte_num = 1; // we want the first byte
 
     while guessed_data.len() < num_bytes {
-
         let padding = block_size - byte_num;
 
         let input = vec![b'A'; padding];
         let oracle_enc = oracle.aes_128_ecb(input);
 
-        let b = (0u8..255).find(|i| {
-            let mut test_input = vec![b'A'; padding];
-            test_input.extend_from_slice(&guessed_data);
+        let b = (0u8..255)
+            .find(|i| {
+                let mut test_input = vec![b'A'; padding];
+                test_input.extend_from_slice(&guessed_data);
 
-            test_input.push(*i);
-            let test_enc = oracle.aes_128_ecb(test_input);
+                test_input.push(*i);
+                let test_enc = oracle.aes_128_ecb(test_input);
 
-            test_enc[block_num*block_size ..(block_num+1)*block_size] == oracle_enc[block_num*block_size ..(block_num+1)*block_size]
-        }).unwrap();
+                test_enc[block_num * block_size..(block_num + 1) * block_size]
+                    == oracle_enc[block_num * block_size..(block_num + 1) * block_size]
+            })
+            .unwrap();
 
         guessed_data.push(b);
 
