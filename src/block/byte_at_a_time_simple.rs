@@ -43,7 +43,8 @@ fn is_ecb(oracle: &Oracle) -> bool {
 
 fn byte_at_a_time(oracle: &Oracle) -> Vec<u8> {
     let block_size = discover_block_size(oracle);
-    let is_ecb = is_ecb(oracle);
+    let num_bytes = oracle.suffix.len();
+    let _is_ecb = is_ecb(oracle);
 
 
     // let's use a block size of 4
@@ -63,9 +64,9 @@ fn byte_at_a_time(oracle: &Oracle) -> Vec<u8> {
     let mut block_num = 0;
     let mut byte_num = 1; // we want the first byte
 
-    while guessed_data.len() < 16 {
+    while guessed_data.len() < num_bytes {
 
-        let padding = block_size - byte_num ;
+        let padding = block_size - byte_num;
 
         let input = vec![b'A'; padding];
         let oracle_enc = oracle.aes_128_ecb(input);
@@ -77,7 +78,7 @@ fn byte_at_a_time(oracle: &Oracle) -> Vec<u8> {
             test_input.push(i);
             let test_enc = oracle.aes_128_ecb(test_input);
 
-            if (test_enc[0..block_size] == oracle_enc[0..block_size]) {
+            if test_enc[block_num*block_size ..(block_num+1)*block_size] == oracle_enc[block_num*block_size ..(block_num+1)*block_size] {
                 guessed_data.push(i);
 
                 println!("Found it {} {}", i, i as char);
@@ -87,6 +88,10 @@ fn byte_at_a_time(oracle: &Oracle) -> Vec<u8> {
         }
 
         byte_num += 1;
+        if byte_num > 16 {
+            byte_num = 1;
+            block_num += 1;
+        }
 
 
     }
@@ -115,7 +120,10 @@ mod tests {
     fn test_byte_at_atime() {
         let oracle = Oracle::new();
         let data = byte_at_a_time(&oracle);
-        for i in 0..data.len() {
+
+        assert_eq!(data.len(), oracle.suffix.len());
+
+        for i in 0..oracle.suffix.len() {
             assert_eq!(data[i], oracle.suffix[i]);
         }
     }
