@@ -32,7 +32,7 @@ fn xor_in_place(data: &mut [u8], key: &[u8]) {
 pub fn aes_128_cbc_decrypt(key: &[u8], mut input: Vec<u8>, iv: &[u8]) -> Vec<u8>  {
     let mut result = Vec::new();
 
-    let padding_bytes = crate::padding::pad(&mut input, 16);
+    // let padding_bytes = crate::padding::pad(&mut input, 16);
 
     let num_blocks = input.len() / 16;
 
@@ -51,6 +51,33 @@ pub fn aes_128_cbc_decrypt(key: &[u8], mut input: Vec<u8>, iv: &[u8]) -> Vec<u8>
         xor_in_place(&mut plain[..], chain);
 
         result.append(&mut plain);
+    }
+    // result.truncate(result.len() - padding_bytes);
+    result
+}
+
+
+pub fn aes_128_cbc_encrypt(key: &[u8], mut input: Vec<u8>, iv: &[u8]) -> Vec<u8>  {
+    let mut result = Vec::new();
+
+    let padding_bytes = crate::padding::pad(&mut input, 16);
+    let num_blocks = input.len() / 16;
+
+    // block 0 xor with iv then encrypt
+    // block 1 xor with block 0 cipher text then encrypt
+
+    for i in 0..num_blocks {
+
+        let mut input_block: Vec<u8> = input[i*16 .. (i+1) * 16].to_vec(); // todo could be an array
+
+        let chain = if i == 0 {
+            iv
+        } else {
+            &result[(i-1)*16 .. i * 16]
+        };
+        xor_in_place(&mut input_block[..], chain);
+        let mut result_block = aes_128_ecb_encrypt(key, &input_block);
+        result.append(&mut result_block);
     }
     result.truncate(result.len() - padding_bytes);
     result
@@ -161,5 +188,24 @@ mod tests {
         let plain = String::from_utf8(plain_text).unwrap();
 
         assert!(plain.starts_with("I'm back and I'm ringin' the bell "));
+    }
+
+
+    #[test]
+    fn test_aes_128_cbc_both_ways() {
+        use std::fs::read_to_string;
+        let f = read_to_string("./challenge-data/10.txt").unwrap();
+        let f: String = f.chars().filter(|c| !c.is_ascii_whitespace()).collect();
+
+        let cipher_text = base64::decode(f).unwrap();
+
+        let key = "YELLOW SUBMARINE".as_bytes();
+        let iv: [u8; 16] = [0;16];
+
+        let plain_text = aes_128_cbc_decrypt(key, cipher_text.clone(), &iv);
+
+
+        let encrypted = aes_128_cbc_encrypt(key, plain_text, &iv);
+        assert_eq!(encrypted, cipher_text);
     }
 }
