@@ -1,14 +1,59 @@
-use openssl::symm::{decrypt, Cipher, encrypt};
+use openssl::symm::{decrypt, Cipher, encrypt, Crypter, Mode};
 use std::collections::HashMap;
+use openssl::symm::Mode::{Decrypt, Encrypt};
 
 pub fn aes_128_ecb_decrypt(key: &[u8], input: &[u8]) -> Vec<u8> {
-    let t = Cipher::aes_128_ecb();
-    decrypt(t, key, None, input).unwrap()
+    aes_128_ecb(key, input, Decrypt)
 }
 
 pub fn aes_128_ecb_encrypt(key: &[u8], input: &[u8]) -> Vec<u8> {
+    aes_128_ecb(key, input, Encrypt)
+}
+
+fn aes_128_ecb(key: &[u8], input: &[u8], mode: Mode) -> Vec<u8> {
     let t = Cipher::aes_128_ecb();
-    encrypt(t, key, None, input).unwrap()
+    let mut c = Crypter::new(t, mode, key, None).unwrap();
+    c.pad(false);
+
+    let mut out = vec![0; input.len() + t.block_size()];
+    let count = c.update(input, &mut out).unwrap();
+    let rest = c.finalize(&mut out[count..]).unwrap();
+    out.truncate(count + rest);
+    out
+}
+
+fn xor_in_place(data: &mut [u8], key: &[u8]) {
+    data.iter_mut()
+        .zip(key)
+        .for_each(|(b, k)| *b ^= k);
+
+}
+
+pub fn aes_128_cbc_decrypt(key: &[u8], mut input: Vec<u8>, iv: &[u8]) -> Vec<u8>  {
+    let mut result = Vec::new();
+
+    let padding_bytes = crate::padding::pad(&mut input, 16);
+
+    let num_blocks = input.len() / 16;
+
+    // block 0 decrypt then xor with iv
+    // block 1 decrpyt then xor with block 0 (cipher)
+
+    for i in 0..num_blocks {
+        let mut plain = aes_128_ecb_decrypt(key, &input[i*16 .. (i+1) * 16]);
+
+        let chain = if i == 0 {
+            iv
+        } else {
+            &input[(i-1)*16 .. i * 16]
+        };
+
+        xor_in_place(&mut plain[..], chain);
+
+        result.append(&mut plain);
+    }
+    result.truncate(result.len() - padding_bytes);
+    result
 }
 
 pub fn detect_aes_128_ecb(possible_cipher_texts: Vec<Vec<u8>>) -> (usize, i32) {
@@ -98,5 +143,23 @@ mod tests {
 
         let idx = detect_aes_128_ecb(data);
         assert_eq!(idx.1, 4);
+    }
+
+    #[test]
+    fn test_aes_128_cbc() {
+        use std::fs::read_to_string;
+        let f = read_to_string("./challenge-data/10.txt").unwrap();
+        let f: String = f.chars().filter(|c| !c.is_ascii_whitespace()).collect();
+
+        let cipher_text = base64::decode(f).unwrap();
+
+        let key = "YELLOW SUBMARINE".as_bytes();
+        let iv: [u8; 16] = [0;16];
+
+        let plain_text = aes_128_cbc_decrypt(key, cipher_text, &iv);
+
+        let plain = String::from_utf8(plain_text).unwrap();
+
+        assert!(plain.starts_with("I'm back and I'm ringin' the bell "));
     }
 }
