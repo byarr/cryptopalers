@@ -3,7 +3,7 @@ use crate::scoring::{ChiSquaredScore, Scorer};
 pub mod aes;
 pub mod scoring;
 pub mod xor;
-pub mod padding;
+pub mod block;
 
 pub fn hex_to_base_64(hex_str: &str) -> String {
     let vec = hex::decode(hex_str).unwrap();

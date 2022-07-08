@@ -3,8 +3,8 @@ fn calc_padding(data: &[u8], block_size: usize) -> usize {
 }
 
 pub fn pad(data: &mut Vec<u8>, block_size: usize) -> usize  {
-    let padding = calc_padding(&data, block_size) ;
-    for i in 0..padding {
+    let padding = calc_padding(data, block_size) ;
+    for _i in 0..padding {
         data.push(padding as u8);
     }
     padding
