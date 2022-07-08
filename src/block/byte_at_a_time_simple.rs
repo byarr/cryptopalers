@@ -41,25 +41,58 @@ fn is_ecb(oracle: &Oracle) -> bool {
     HashCount::new(&cypher).max_count() > 1
 }
 
-fn byte_at_a_time(oracle: &Oracle) {
+fn byte_at_a_time(oracle: &Oracle) -> Vec<u8> {
     let block_size = discover_block_size(oracle);
     let is_ecb = is_ecb(oracle);
 
 
-    let input = vec![b'A'; block_size-1];
-    let oracle_enc = oracle.aes_128_ecb(input);
+    // let's use a block size of 4
+    // if we pass in AAA then oracle will ecncrpt AAA1 2345 6789                     block_num 0, byte_num 1
+    // if we pass in AAAB then oracle will ecncrpt AAAB 1234 5678
+    // if we vary B until the block matches then we know the vlaue of B should be 1
+    // for byte 2 pass AA then orcale will encrypt AA12 3456                          block_num 0, byte_num 1
+    // then we can guess AA1Y to find 2
 
-    for i in 0..255 {
-        let mut test_input = vec![b'A'; block_size-1];
-        test_input.push(i);
-        let test_enc = oracle.aes_128_ecb(test_input);
+    // second block:
+    // pass in AAA  == AAA1 2345 of which only the 5 is unknown to me
+    // AAA1 234X - match second block
 
-        if (test_enc[0..block_size] == oracle_enc[0..block_size]) {
-            println!("Found it {} {}", i, i as char);
+
+    let mut guessed_data = Vec::new();
+
+    let mut block_num = 0;
+    let mut byte_num = 1; // we want the first byte
+
+    while guessed_data.len() < 16 {
+
+        let padding = block_size - byte_num ;
+
+        let input = vec![b'A'; padding];
+        let oracle_enc = oracle.aes_128_ecb(input);
+
+        for i in 0..255 {
+            let mut test_input = vec![b'A'; padding];
+            test_input.extend_from_slice(&guessed_data);
+
+            test_input.push(i);
+            let test_enc = oracle.aes_128_ecb(test_input);
+
+            if (test_enc[0..block_size] == oracle_enc[0..block_size]) {
+                guessed_data.push(i);
+
+                println!("Found it {} {}", i, i as char);
+                break;
+            }
+
         }
+
+        byte_num += 1;
+
 
     }
 
+
+    guessed_data
 }
 
 #[cfg(test)]
@@ -81,6 +114,9 @@ mod tests {
     #[test]
     fn test_byte_at_atime() {
         let oracle = Oracle::new();
-        byte_at_a_time(&oracle);
+        let data = byte_at_a_time(&oracle);
+        for i in 0..data.len() {
+            assert_eq!(data[i], oracle.suffix[i]);
+        }
     }
 }
