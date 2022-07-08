@@ -42,11 +42,23 @@ fn is_ecb(oracle: &Oracle) -> bool {
 }
 
 fn byte_at_a_time(oracle: &Oracle) {
-
     let block_size = discover_block_size(oracle);
-
     let is_ecb = is_ecb(oracle);
 
+
+    let input = vec![b'A'; block_size-1];
+    let oracle_enc = oracle.aes_128_ecb(input);
+
+    for i in 0..255 {
+        let mut test_input = vec![b'A'; block_size-1];
+        test_input.push(i);
+        let test_enc = oracle.aes_128_ecb(test_input);
+
+        if (test_enc[0..block_size] == oracle_enc[0..block_size]) {
+            println!("Found it {} {}", i, i as char);
+        }
+
+    }
 
 }
 
@@ -64,5 +76,11 @@ mod tests {
     fn test_is_ecb() {
         let oracle = Oracle::new();
         assert_eq!(true, is_ecb(&oracle));
+    }
+
+    #[test]
+    fn test_byte_at_atime() {
+        let oracle = Oracle::new();
+        byte_at_a_time(&oracle);
     }
 }
