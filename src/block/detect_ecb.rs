@@ -53,6 +53,10 @@ pub fn detect_aes_128_ecb(possible_cipher_texts: Vec<Vec<u8>>) -> (usize, HashCo
 
 
 fn encryption_oracle(mut input: Vec<u8>) -> Vec<u8> {
+    leaky_encryption_oracle(input).0
+}
+
+fn leaky_encryption_oracle(mut input: Vec<u8>) -> (Vec<u8>, bool) {
     let mut key: [u8; 16] = [0; 16];
     rand_bytes(&mut key).unwrap();
 
@@ -67,14 +71,26 @@ fn encryption_oracle(mut input: Vec<u8>) -> Vec<u8> {
         padded_input.push(rand::thread_rng().gen());
     }
 
-    let mode: bool = thread_rng().gen();
-    if mode {
-        aes_128_ecb_encrypt(&key, padded_input)
+    let use_ecb: bool = thread_rng().gen();
+    if use_ecb {
+        (aes_128_ecb_encrypt(&key, padded_input), use_ecb)
     } else {
         let mut iv: [u8; 16] = [0; 16];
         rand_bytes(&mut iv).unwrap();
-        aes_128_cbc_encrypt(&key, input, &iv)
+        (aes_128_cbc_encrypt(&key, input, &iv), use_ecb)
     }
+}
+
+fn detect_ecb_cbc() -> (bool, bool) {
+    // need two identical plain text blocks - but the oracle is going to prepend some data - so pass in more and ignore first block
+
+    let mut v = vec![0xff; 64];
+
+    let (cipher_text, was_ecb) = leaky_encryption_oracle(v);
+
+    let detected_ecb = HashCount::new(&cipher_text).max_count() > 1;
+
+    return (was_ecb, detected_ecb)
 }
 
 
@@ -95,5 +111,14 @@ mod tests {
 
         let idx = detect_aes_128_ecb(data);
         assert_eq!(idx.1.max_count(), 4);
+    }
+
+    #[test]
+    fn test_detect_ecb_cbc() {
+        for i in 0..10 {
+            let (was, detect) = detect_ecb_cbc();
+            assert_eq!(was, detect)
+
+        }
     }
 }
