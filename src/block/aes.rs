@@ -5,14 +5,34 @@ use openssl::symm::Mode::{Decrypt, Encrypt};
 
 
 pub fn aes_128_ecb_decrypt(key: &[u8], input: &[u8]) -> Vec<u8> {
-    aes_128_ecb(key, input, Decrypt)
+    let mut output = Vec::with_capacity(input.len());
+    let num_blocks = input.len() / 16;
+
+    for i in 0..num_blocks {
+        let mut block_out = aes_128_ecb_block(key, &input[i*16..(i+1)*16], Decrypt);
+        output.append(&mut block_out);
+    }
+    output
 }
 
-pub fn aes_128_ecb_encrypt(key: &[u8], input: &[u8]) -> Vec<u8> {
-    aes_128_ecb(key, input, Encrypt)
+pub fn aes_128_ecb_encrypt(key: &[u8], mut input: Vec<u8>) -> Vec<u8> {
+
+    let padding_bytes = crate::block::padding::pad(&mut input, 16);
+    let mut output = Vec::with_capacity(input.len() + padding_bytes);
+
+    let num_blocks = input.len() / 16;
+    for i in 0..num_blocks {
+        let mut block_out = aes_128_ecb_block(key, &input[i*16..(i+1)*16], Encrypt);
+        output.append(&mut block_out);
+    }
+
+    output.truncate(output.len() - padding_bytes);
+    output
 }
 
-fn aes_128_ecb(key: &[u8], input: &[u8], mode: Mode) -> Vec<u8> {
+fn aes_128_ecb_block(key: &[u8], input: &[u8], mode: Mode) -> Vec<u8> {
+    assert_eq!(input.len(), 16);
+
     let t = Cipher::aes_128_ecb();
     let mut c = Crypter::new(t, mode, key, None).unwrap();
     c.pad(false);
@@ -41,7 +61,7 @@ pub fn aes_128_cbc_decrypt(key: &[u8], input: Vec<u8>, iv: &[u8]) -> Vec<u8>  {
     // block 1 decrpyt then xor with block 0 (cipher)
 
     for i in 0..num_blocks {
-        let mut plain = aes_128_ecb_decrypt(key, &input[i*16 .. (i+1) * 16]);
+        let mut plain = aes_128_ecb_block(key, &input[i*16 .. (i+1) * 16], Mode::Decrypt);
 
         let chain = if i == 0 {
             iv
@@ -76,7 +96,7 @@ pub fn aes_128_cbc_encrypt(key: &[u8], mut input: Vec<u8>, iv: &[u8]) -> Vec<u8>
             &result[(i-1)*16 .. i * 16]
         };
         xor_in_place(&mut input_block[..], chain);
-        let mut result_block = aes_128_ecb_encrypt(key, &input_block);
+        let mut result_block = aes_128_ecb_block(key, &input_block, Encrypt);
         result.append(&mut result_block);
     }
     result.truncate(result.len() - padding_bytes);
@@ -117,7 +137,7 @@ mod tests {
 
 
         let plain_text = aes_128_ecb_decrypt(key, &cipher_text);
-        let encrypted = aes_128_ecb_encrypt(key, &plain_text);
+        let encrypted = aes_128_ecb_encrypt(key, plain_text.clone());
         assert_eq!(encrypted, cipher_text);
 
 

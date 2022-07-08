@@ -42,8 +42,8 @@ fn encryption_oracle(mut input: Vec<u8>) -> Vec<u8> {
     rand_bytes(&mut key).unwrap();
 
     let mut padded_input = Vec::with_capacity(input.len() + 20);
-    let prefix_len = rand::thread_rng().gen_range(5..10);
-    let suffix_len = rand::thread_rng().gen_range(5..10);
+    let prefix_len = thread_rng().gen_range(5..10);
+    let suffix_len = thread_rng().gen_range(5..10);
     for _i in 0..prefix_len {
         padded_input.push(rand::thread_rng().gen());
     }
@@ -54,7 +54,7 @@ fn encryption_oracle(mut input: Vec<u8>) -> Vec<u8> {
 
     let mode: bool = thread_rng().gen();
     if mode {
-        aes_128_ecb_encrypt(&key, &padded_input)
+        aes_128_ecb_encrypt(&key, padded_input)
     } else {
         let mut iv: [u8; 16] = [0; 16];
         rand_bytes(&mut iv).unwrap();
