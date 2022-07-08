@@ -1,6 +1,5 @@
 use crate::scoring::{ChiSquaredScore, Scorer};
 
-pub mod aes;
 pub mod scoring;
 pub mod xor;
 pub mod block;

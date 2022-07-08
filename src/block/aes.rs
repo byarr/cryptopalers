@@ -53,7 +53,6 @@ pub fn aes_128_cbc_decrypt(key: &[u8], input: Vec<u8>, iv: &[u8]) -> Vec<u8>  {
 
         result.append(&mut plain);
     }
-    // result.truncate(result.len() - padding_bytes);
     result
 }
 
@@ -88,8 +87,6 @@ pub fn aes_128_cbc_encrypt(key: &[u8], mut input: Vec<u8>, iv: &[u8]) -> Vec<u8>
 #[cfg(test)]
 mod tests {
     use super::*;
-    
-    
 
     #[test]
     fn test_aes_128_ecb() {
