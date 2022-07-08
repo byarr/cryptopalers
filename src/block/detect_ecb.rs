@@ -4,7 +4,23 @@ use openssl::rand::rand_bytes;
 use rand::{Rng, thread_rng};
 use crate::block::{aes_128_cbc_encrypt, aes_128_ecb_encrypt};
 
-pub fn detect_aes_128_ecb(possible_cipher_texts: Vec<Vec<u8>>) -> (usize, i32) {
+#[derive(Debug, Default)]
+pub struct HashCount(HashMap<u128, i32>);
+
+impl HashCount {
+
+    fn new(data: &[u8]) -> Self {
+        let block_size_bytes = 16;
+        let num_blocks = data.len() / block_size_bytes;
+
+        let counts = (0..num_blocks)
+            .fold(HashCount::default(), |mut acc, i| {
+                acc.add_block(&data[i * block_size_bytes..(i + 1) * block_size_bytes]);
+                acc
+            });
+        counts
+    }
+
     fn hash_block(block: &[u8]) -> u128 {
         let mut b_hash: u128 = 0;
         block.iter().for_each(|b| {
@@ -14,25 +30,24 @@ pub fn detect_aes_128_ecb(possible_cipher_texts: Vec<Vec<u8>>) -> (usize, i32) {
         b_hash
     }
 
-    let block_size_bytes = 16;
+    fn add_block(&mut self, block: &[u8]) {
+        let hash = HashCount::hash_block(block);
+        let entry = self.0.entry(hash).or_insert(0);
+        *entry += 1;
+    }
 
+    fn max_count(&self) -> i32 {
+        *self.0.values().max().unwrap_or(&0)
+    }
+
+}
+
+pub fn detect_aes_128_ecb(possible_cipher_texts: Vec<Vec<u8>>) -> (usize, HashCount) {
     possible_cipher_texts
         .iter()
         .enumerate()
-        .filter_map(|(idx, cipher_text)| {
-            let num_blocks = cipher_text.len() / block_size_bytes;
-
-            let counts = (0..num_blocks)
-                .map(|b| hash_block(&cipher_text[b * block_size_bytes..(b + 1) * block_size_bytes]))
-                .fold(HashMap::new(), |mut acc, i| {
-                    let entry = acc.entry(i).or_insert(0);
-                    *entry += 1;
-                    acc
-                });
-
-            counts.values().max().map(|m| (idx, *m))
-        })
-        .max_by(|b1, b2| b1.1.cmp(&b2.1))
+        .map(|(idx, cipher_text)| (idx, HashCount::new(cipher_text)))
+        .max_by_key(|(idx, count)| count.max_count())
         .unwrap()
 }
 
@@ -79,6 +94,6 @@ mod tests {
                 .collect();
 
         let idx = detect_aes_128_ecb(data);
-        assert_eq!(idx.1, 4);
+        assert_eq!(idx.1.max_count(), 4);
     }
 }
