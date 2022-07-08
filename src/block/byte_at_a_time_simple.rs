@@ -25,14 +25,21 @@ impl Oracle {
     }
 }
 
-fn discover_block_size(oracle: &Oracle) -> usize {
-    let initial_size = oracle.aes_128_ecb(vec![b'A'; 1]).len();
+fn discover_block_size(oracle: &Oracle) -> (usize, usize) {
+    let initial_size = oracle.aes_128_ecb(vec![b'A'; 1]).len(); // Oracle + 1 + padding (1 - block_size)
 
-    (2..64)
-        .map(|extra| oracle.aes_128_ecb(vec![b'A'; extra]).len())
-        .map(|len| len - initial_size)
-        .find(|block| *block != 0)
-        .unwrap()
+    let (bytes, enc_length) = (2..64)
+        .map(|extra| (extra, oracle.aes_128_ecb(vec![b'A'; extra]).len()))
+        .find(|(data_len, encrypted_len) | (encrypted_len - initial_size) != 0)
+        .unwrap();
+
+    // enc_length = Oracale + bytes + padd (1- blocksize)
+
+    let block_size = enc_length - initial_size;
+
+    let data_length = initial_size - bytes;
+
+    (block_size, data_length)
 }
 
 fn is_ecb(oracle: &Oracle) -> bool {
@@ -42,8 +49,7 @@ fn is_ecb(oracle: &Oracle) -> bool {
 }
 
 fn byte_at_a_time(oracle: &Oracle) -> Vec<u8> {
-    let block_size = discover_block_size(oracle);
-    let num_bytes = oracle.suffix.len();
+    let (block_size, num_bytes) = discover_block_size(oracle);
     let _is_ecb = is_ecb(oracle);
 
 
@@ -71,32 +77,24 @@ fn byte_at_a_time(oracle: &Oracle) -> Vec<u8> {
         let input = vec![b'A'; padding];
         let oracle_enc = oracle.aes_128_ecb(input);
 
-        for i in 0..255 {
+        let b = (0u8..255).find(|i| {
             let mut test_input = vec![b'A'; padding];
             test_input.extend_from_slice(&guessed_data);
 
-            test_input.push(i);
+            test_input.push(*i);
             let test_enc = oracle.aes_128_ecb(test_input);
 
-            if test_enc[block_num*block_size ..(block_num+1)*block_size] == oracle_enc[block_num*block_size ..(block_num+1)*block_size] {
-                guessed_data.push(i);
+            test_enc[block_num*block_size ..(block_num+1)*block_size] == oracle_enc[block_num*block_size ..(block_num+1)*block_size]
+        }).unwrap();
 
-                println!("Found it {} {}", i, i as char);
-                break;
-            }
-
-        }
+        guessed_data.push(b);
 
         byte_num += 1;
         if byte_num > 16 {
             byte_num = 1;
             block_num += 1;
         }
-
-
     }
-
-
     guessed_data
 }
 
@@ -107,7 +105,9 @@ mod tests {
     #[test]
     fn test_discover_block_size() {
         let oracle = Oracle::new();
-        assert_eq!(16, discover_block_size(&oracle));
+        let (block_size, data_length) = discover_block_size(&oracle);
+        assert_eq!(16, block_size);
+        assert_eq!(oracle.suffix.len(), data_length);
     }
 
     #[test]
