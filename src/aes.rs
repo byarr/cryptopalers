@@ -1,6 +1,8 @@
 use openssl::symm::{decrypt, Cipher, encrypt, Crypter, Mode};
 use std::collections::HashMap;
+use openssl::rand::rand_bytes;
 use openssl::symm::Mode::{Decrypt, Encrypt};
+use rand::{Rng, thread_rng};
 
 pub fn aes_128_ecb_decrypt(key: &[u8], input: &[u8]) -> Vec<u8> {
     aes_128_ecb(key, input, Decrypt)
@@ -20,6 +22,31 @@ fn aes_128_ecb(key: &[u8], input: &[u8], mode: Mode) -> Vec<u8> {
     let rest = c.finalize(&mut out[count..]).unwrap();
     out.truncate(count + rest);
     out
+}
+
+fn encryption_oracle(mut input: Vec<u8>) -> Vec<u8> {
+    let mut key: [u8; 16] = [0; 16];
+    rand_bytes(&mut key).unwrap();
+
+    let mut padded_input = Vec::with_capacity(input.len() + 20);
+    let prefix_len = rand::thread_rng().gen_range(5..10);
+    let suffix_len = rand::thread_rng().gen_range(5..10);
+    for _i in 0..prefix_len {
+        padded_input.push(rand::thread_rng().gen());
+    }
+    padded_input.append(&mut input);
+    for _i in 0..suffix_len {
+        padded_input.push(rand::thread_rng().gen());
+    }
+
+    let mode: bool = thread_rng().gen();
+    if mode {
+        aes_128_ecb_encrypt(&key, &padded_input)
+    } else {
+        let mut iv: [u8; 16] = [0; 16];
+        rand_bytes(&mut iv).unwrap();
+        aes_128_cbc_encrypt(&key, input, &iv)
+    }
 }
 
 fn xor_in_place(data: &mut [u8], key: &[u8]) {
