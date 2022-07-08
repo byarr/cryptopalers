@@ -4,35 +4,36 @@ use openssl::symm::{Cipher, Crypter, Mode};
 use openssl::symm::Mode::{Decrypt, Encrypt};
 use crate::block::padding::strip_padding;
 
+const BLOCK_SIZE: usize = 16;
 
 pub fn aes_128_ecb_decrypt(key: &[u8], input: &[u8]) -> Vec<u8> {
     let mut output = Vec::with_capacity(input.len());
-    let num_blocks = input.len() / 16;
+    let num_blocks = input.len() / BLOCK_SIZE;
 
     for i in 0..num_blocks {
-        let mut block_out = aes_128_ecb_block(key, &input[i*16..(i+1)*16], Decrypt);
+        let mut block_out = aes_128_ecb_block(key, &input[i*BLOCK_SIZE..(i+1)*BLOCK_SIZE], Decrypt);
         output.append(&mut block_out);
     }
 
-    strip_padding(&mut output, 16);
+    strip_padding(&mut output, BLOCK_SIZE);
     output
 }
 
 pub fn aes_128_ecb_encrypt(key: &[u8], mut input: Vec<u8>) -> Vec<u8> {
 
-    let padding_bytes = crate::block::padding::pad(&mut input, 16);
+    let padding_bytes = crate::block::padding::pad(&mut input, BLOCK_SIZE);
     let mut output = Vec::with_capacity(input.len() + padding_bytes);
 
     let num_blocks = input.len() / 16;
     for i in 0..num_blocks {
-        let mut block_out = aes_128_ecb_block(key, &input[i*16..(i+1)*16], Encrypt);
+        let mut block_out = aes_128_ecb_block(key, &input[i*BLOCK_SIZE..(i+1)*BLOCK_SIZE], Encrypt);
         output.append(&mut block_out);
     }
     output
 }
 
 fn aes_128_ecb_block(key: &[u8], input: &[u8], mode: Mode) -> Vec<u8> {
-    assert_eq!(input.len(), 16);
+    assert_eq!(input.len(), BLOCK_SIZE);
 
     let t = Cipher::aes_128_ecb();
     let mut c = Crypter::new(t, mode, key, None).unwrap();
@@ -62,12 +63,12 @@ pub fn aes_128_cbc_decrypt(key: &[u8], input: Vec<u8>, iv: &[u8]) -> Vec<u8>  {
     // block 1 decrpyt then xor with block 0 (cipher)
 
     for i in 0..num_blocks {
-        let mut plain = aes_128_ecb_block(key, &input[i*16 .. (i+1) * 16], Mode::Decrypt);
+        let mut plain = aes_128_ecb_block(key, &input[i*BLOCK_SIZE .. (i+1) * BLOCK_SIZE], Mode::Decrypt);
 
         let chain = if i == 0 {
             iv
         } else {
-            &input[(i-1)*16 .. i * 16]
+            &input[(i-1)*BLOCK_SIZE .. i * BLOCK_SIZE]
         };
 
         xor_in_place(&mut plain[..], chain);
@@ -75,7 +76,7 @@ pub fn aes_128_cbc_decrypt(key: &[u8], input: Vec<u8>, iv: &[u8]) -> Vec<u8>  {
         result.append(&mut plain);
     }
 
-    strip_padding(&mut result, 16);
+    strip_padding(&mut result, BLOCK_SIZE);
     result
 }
 
@@ -83,7 +84,7 @@ pub fn aes_128_cbc_decrypt(key: &[u8], input: Vec<u8>, iv: &[u8]) -> Vec<u8>  {
 pub fn aes_128_cbc_encrypt(key: &[u8], mut input: Vec<u8>, iv: &[u8]) -> Vec<u8>  {
     let mut result = Vec::new();
 
-    let padding_bytes = crate::block::padding::pad(&mut input, 16);
+    let padding_bytes = crate::block::padding::pad(&mut input, BLOCK_SIZE);
     let num_blocks = input.len() / 16;
 
     // block 0 xor with iv then encrypt
@@ -91,12 +92,12 @@ pub fn aes_128_cbc_encrypt(key: &[u8], mut input: Vec<u8>, iv: &[u8]) -> Vec<u8>
 
     for i in 0..num_blocks {
 
-        let mut input_block: Vec<u8> = input[i*16 .. (i+1) * 16].to_vec(); // todo could be an array
+        let mut input_block: Vec<u8> = input[i*BLOCK_SIZE .. (i+1) * BLOCK_SIZE].to_vec(); // todo could be an array
 
         let chain = if i == 0 {
             iv
         } else {
-            &result[(i-1)*16 .. i * 16]
+            &result[(i-1)*BLOCK_SIZE .. i * BLOCK_SIZE]
         };
         xor_in_place(&mut input_block[..], chain);
         let mut result_block = aes_128_ecb_block(key, &input_block, Encrypt);

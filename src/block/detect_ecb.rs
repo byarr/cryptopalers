@@ -9,7 +9,7 @@ pub struct HashCount(HashMap<u128, i32>);
 
 impl HashCount {
 
-    fn new(data: &[u8]) -> Self {
+    pub fn new(data: &[u8]) -> Self {
         let block_size_bytes = 16;
         let num_blocks = data.len() / block_size_bytes;
 
@@ -36,7 +36,7 @@ impl HashCount {
         *entry += 1;
     }
 
-    fn max_count(&self) -> i32 {
+    pub fn max_count(&self) -> i32 {
         *self.0.values().max().unwrap_or(&0)
     }
 
