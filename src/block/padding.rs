@@ -10,6 +10,24 @@ pub fn pad(data: &mut Vec<u8>, block_size: usize) -> usize  {
     padding
 }
 
+pub fn strip_padding(data: &mut Vec<u8>, block_size: usize) {
+    if data.len() % block_size != 0 {
+        return;
+    }
+
+    let padding = data.last().unwrap().clone();
+    if padding as usize > block_size {
+        return;
+    }
+
+    if data.iter().rev().take(padding as usize).cloned().all(|p| p == padding) {
+        data.truncate(data.len() - padding as usize);
+    }
+
+
+
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

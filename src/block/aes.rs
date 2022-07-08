@@ -2,6 +2,7 @@ use openssl::symm::{Cipher, Crypter, Mode};
 
 
 use openssl::symm::Mode::{Decrypt, Encrypt};
+use crate::block::padding::strip_padding;
 
 
 pub fn aes_128_ecb_decrypt(key: &[u8], input: &[u8]) -> Vec<u8> {
@@ -12,6 +13,8 @@ pub fn aes_128_ecb_decrypt(key: &[u8], input: &[u8]) -> Vec<u8> {
         let mut block_out = aes_128_ecb_block(key, &input[i*16..(i+1)*16], Decrypt);
         output.append(&mut block_out);
     }
+
+    strip_padding(&mut output, 16);
     output
 }
 
@@ -25,8 +28,6 @@ pub fn aes_128_ecb_encrypt(key: &[u8], mut input: Vec<u8>) -> Vec<u8> {
         let mut block_out = aes_128_ecb_block(key, &input[i*16..(i+1)*16], Encrypt);
         output.append(&mut block_out);
     }
-
-    output.truncate(output.len() - padding_bytes);
     output
 }
 
@@ -73,6 +74,8 @@ pub fn aes_128_cbc_decrypt(key: &[u8], input: Vec<u8>, iv: &[u8]) -> Vec<u8>  {
 
         result.append(&mut plain);
     }
+
+    strip_padding(&mut result, 16);
     result
 }
 
@@ -99,7 +102,6 @@ pub fn aes_128_cbc_encrypt(key: &[u8], mut input: Vec<u8>, iv: &[u8]) -> Vec<u8>
         let mut result_block = aes_128_ecb_block(key, &input_block, Encrypt);
         result.append(&mut result_block);
     }
-    result.truncate(result.len() - padding_bytes);
     result
 }
 
