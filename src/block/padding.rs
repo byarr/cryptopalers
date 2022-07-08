@@ -15,7 +15,7 @@ pub fn strip_padding(data: &mut Vec<u8>, block_size: usize) {
         return;
     }
 
-    let padding = data.last().unwrap().clone();
+    let padding = *data.last().unwrap();
     if padding as usize > block_size {
         return;
     }

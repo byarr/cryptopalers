@@ -2,7 +2,7 @@ use rand::Rng;
 use crate::block::aes_128_ecb_encrypt;
 use crate::block::detect_ecb::HashCount;
 
-const SUFFIX: &'static str = "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK";
+const SUFFIX: &str = "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK";
 
 struct Oracle {
     key: [u8; 16],
@@ -30,7 +30,7 @@ fn discover_block_size(oracle: &Oracle) -> (usize, usize) {
 
     let (bytes, enc_length) = (2..64)
         .map(|extra| (extra, oracle.aes_128_ecb(vec![b'A'; extra]).len()))
-        .find(|(data_len, encrypted_len) | (encrypted_len - initial_size) != 0)
+        .find(|(_data_len, encrypted_len) | (encrypted_len - initial_size) != 0)
         .unwrap();
 
     // enc_length = Oracale + bytes + padd (1- blocksize)

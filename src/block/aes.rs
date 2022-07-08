@@ -84,7 +84,7 @@ pub fn aes_128_cbc_decrypt(key: &[u8], input: Vec<u8>, iv: &[u8]) -> Vec<u8>  {
 pub fn aes_128_cbc_encrypt(key: &[u8], mut input: Vec<u8>, iv: &[u8]) -> Vec<u8>  {
     let mut result = Vec::new();
 
-    let padding_bytes = crate::block::padding::pad(&mut input, BLOCK_SIZE);
+    let _padding_bytes = crate::block::padding::pad(&mut input, BLOCK_SIZE);
     let num_blocks = input.len() / 16;
 
     // block 0 xor with iv then encrypt
