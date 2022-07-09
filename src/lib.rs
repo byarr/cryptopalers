@@ -1,3 +1,5 @@
+extern crate core;
+
 use crate::scoring::{ChiSquaredScore, Scorer};
 
 pub mod block;
