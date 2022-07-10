@@ -2,7 +2,7 @@ use crate::block::aes_128_ecb_encrypt;
 use crate::block::detect_ecb::HashCount;
 use rand::Rng;
 
-const SUFFIX: &str = "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK";
+pub const SUFFIX: &str = "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK";
 
 struct Oracle {
     key: [u8; 16],
@@ -23,11 +23,11 @@ impl Oracle {
     }
 }
 
-fn discover_block_size(oracle: &Oracle) -> (usize, usize) {
-    let initial_size = oracle.aes_128_ecb(vec![b'A'; 1]).len(); // Oracle + 1 + padding (1 - block_size)
+pub fn discover_block_size<F: Fn(Vec<u8>) -> Vec<u8>>(oracle: F) -> (usize, usize) {
+    let initial_size = oracle(vec![b'A'; 1]).len(); // Oracle + 1 + padding (1 - block_size)
 
     let (bytes, enc_length) = (2..64)
-        .map(|extra| (extra, oracle.aes_128_ecb(vec![b'A'; extra]).len()))
+        .map(|extra| (extra, oracle(vec![b'A'; extra]).len()))
         .find(|(_data_len, encrypted_len)| (encrypted_len - initial_size) != 0)
         .unwrap();
 
@@ -47,7 +47,7 @@ fn is_ecb(oracle: &Oracle) -> bool {
 }
 
 fn byte_at_a_time(oracle: &Oracle) -> Vec<u8> {
-    let (block_size, num_bytes) = discover_block_size(oracle);
+    let (block_size, num_bytes) = discover_block_size(|inp| oracle.aes_128_ecb(inp));
     let _is_ecb = is_ecb(oracle);
 
     // let's use a block size of 4
@@ -103,9 +103,27 @@ mod tests {
     #[test]
     fn test_discover_block_size() {
         let oracle = Oracle::new();
-        let (block_size, data_length) = discover_block_size(&oracle);
+        let (block_size, data_length) = discover_block_size(|input| oracle.aes_128_ecb(input));
         assert_eq!(16, block_size);
         assert_eq!(oracle.suffix.len(), data_length);
+    }
+
+    #[test]
+    fn test_discover_block_sizes() {
+        for i in 1..32 {
+
+            let mut key = [0u8; 16];
+            rand::thread_rng().fill(&mut key);
+
+            let suffix = vec![0xaau8; i];
+
+            let oracle = Oracle { key, suffix };
+
+            let (block_size, data_length) = discover_block_size(|input| oracle.aes_128_ecb(input));
+            assert_eq!(16, block_size);
+            assert_eq!(oracle.suffix.len(), i);
+        }
+
     }
 
     #[test]
