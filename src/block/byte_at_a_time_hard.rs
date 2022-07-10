@@ -65,18 +65,31 @@ fn discover_prefix_len<F: Fn(Vec<u8>) -> Vec<u8>>(oracle: F) -> usize {
 fn byte_at_a_time<F: Fn(Vec<u8>) -> Vec<u8>>(oracle: F) -> Vec<u8> {
     let (block_size, num_bytes) = discover_block_size(|inp| oracle(inp));
 
-    let prefix_len = discover_prefix_len(oracle);
+    let prefix_len = discover_prefix_len(&oracle);
 
     println!("{:?}", prefix_len);
 
+
     // use existing code but pad input with enough input to take prefix to full block and remove from output
+    let padding_len = 16 - (prefix_len % 16);
+    let prefix_to_strip = (prefix_len + padding_len);
 
+    crate::block::byte_at_a_time_simple::byte_at_a_time(|input| {
+        let mut padded_input = Vec::with_capacity(input.len() + padding_len);
+        for i in 0..padding_len {
+            padded_input.push(0u8);
+        }
+        padded_input.extend_from_slice(&input);
 
+        let output = oracle(padded_input);
 
-    vec![]
+        let mut stripped_output = Vec::new();
+        stripped_output.extend_from_slice(&output[prefix_to_strip..]);
+
+        stripped_output
+    })
 
 }
-
 
 
 #[cfg(test)]

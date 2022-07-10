@@ -40,15 +40,15 @@ pub fn discover_block_size<F: Fn(Vec<u8>) -> Vec<u8>>(oracle: F) -> (usize, usiz
     (block_size, data_length)
 }
 
-fn is_ecb(oracle: &Oracle) -> bool {
+fn is_ecb<F: Fn(Vec<u8>) -> Vec<u8>>(oracle: F) -> bool {
     let input = vec![b'A'; 64];
-    let cypher = oracle.aes_128_ecb(input);
+    let cypher = oracle(input);
     HashCount::new(&cypher).max_count() > 1
 }
 
-fn byte_at_a_time(oracle: &Oracle) -> Vec<u8> {
-    let (block_size, num_bytes) = discover_block_size(|inp| oracle.aes_128_ecb(inp));
-    let _is_ecb = is_ecb(oracle);
+pub fn byte_at_a_time<F: Fn(Vec<u8>) -> Vec<u8>>(oracle: F) -> Vec<u8> {
+    let (block_size, num_bytes) = discover_block_size(&oracle);
+    let _is_ecb = is_ecb(&oracle);
 
     // let's use a block size of 4
     // if we pass in AAA then oracle will ecncrpt AAA1 2345 6789                     block_num 0, byte_num 1
@@ -70,7 +70,7 @@ fn byte_at_a_time(oracle: &Oracle) -> Vec<u8> {
         let padding = block_size - byte_num;
 
         let input = vec![b'A'; padding];
-        let oracle_enc = oracle.aes_128_ecb(input);
+        let oracle_enc = oracle(input);
 
         let b = (0u8..255)
             .find(|i| {
@@ -78,7 +78,7 @@ fn byte_at_a_time(oracle: &Oracle) -> Vec<u8> {
                 test_input.extend_from_slice(&guessed_data);
 
                 test_input.push(*i);
-                let test_enc = oracle.aes_128_ecb(test_input);
+                let test_enc = oracle(test_input);
 
                 test_enc[block_num * block_size..(block_num + 1) * block_size]
                     == oracle_enc[block_num * block_size..(block_num + 1) * block_size]
@@ -129,13 +129,13 @@ mod tests {
     #[test]
     fn test_is_ecb() {
         let oracle = Oracle::new();
-        assert_eq!(true, is_ecb(&oracle));
+        assert_eq!(true, is_ecb(|input| oracle.aes_128_ecb(input)));
     }
 
     #[test]
     fn test_byte_at_atime() {
         let oracle = Oracle::new();
-        let data = byte_at_a_time(&oracle);
+        let data = byte_at_a_time(|input| oracle.aes_128_ecb(input));
 
         assert_eq!(data.len(), oracle.suffix.len());
 
