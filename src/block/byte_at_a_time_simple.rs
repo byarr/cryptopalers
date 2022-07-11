@@ -120,7 +120,7 @@ mod tests {
 
             let (block_size, data_length) = discover_block_size(|input| oracle.aes_128_ecb(input));
             assert_eq!(16, block_size);
-            assert_eq!(oracle.suffix.len(), i);
+            assert_eq!(oracle.suffix.len(), data_length);
         }
     }
 
