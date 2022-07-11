@@ -51,7 +51,7 @@ pub fn validate_padding(data: &[u8], block_size: usize) -> Result<&[u8], ()> {
         return Err(());
     }
 
-    return Ok(&data[0..data.len() - padding as usize]);
+    Ok(&data[0..data.len() - padding as usize])
 }
 
 #[cfg(test)]

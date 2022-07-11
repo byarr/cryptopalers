@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 extern crate core;
 
 use crate::scoring::{ChiSquaredScore, Scorer};
