@@ -1,7 +1,5 @@
-use crate::block::padding::strip_padding;
 use crate::block::{aes_128_cbc_decrypt, aes_128_cbc_encrypt};
 use rand::{thread_rng, Rng};
-use std::string::FromUtf8Error;
 
 struct CbcCookieCutter {
     key: [u8; 16],
