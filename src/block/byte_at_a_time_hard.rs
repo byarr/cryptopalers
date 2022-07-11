@@ -1,8 +1,7 @@
 use crate::block::aes_128_ecb_encrypt;
+use crate::block::byte_at_a_time_simple::{discover_block_size, SUFFIX};
 use crate::block::detect_ecb::HashCount;
 use rand::Rng;
-use crate::block::byte_at_a_time_simple::{discover_block_size, SUFFIX};
-
 
 struct Oracle {
     prefix: Vec<u8>,
@@ -20,12 +19,14 @@ impl Oracle {
         let mut prefix = vec![0u8; prefix_length];
         rand::thread_rng().fill(&mut prefix[..]);
 
-
-        Oracle { key, suffix, prefix }
+        Oracle {
+            key,
+            suffix,
+            prefix,
+        }
     }
 
     fn aes_128_ecb(&self, input: Vec<u8>) -> Vec<u8> {
-
         let mut payload = Vec::with_capacity(input.len() + self.prefix.len() + self.suffix.len());
         payload.extend_from_slice(&self.prefix);
         payload.extend_from_slice(&input);
@@ -37,29 +38,31 @@ impl Oracle {
 
 fn find_repeating_blocks(data: &[u8]) -> Option<usize> {
     let num_blocks = data.len() / 16;
-    for i in 0..num_blocks-1 {
-        if data[i*16..(i+1)*16] == data[(i+1)*16..(i+2)*16] {
-            return Some(i)
+    for i in 0..num_blocks - 1 {
+        if data[i * 16..(i + 1) * 16] == data[(i + 1) * 16..(i + 2) * 16] {
+            return Some(i);
         }
     }
     None
 }
 
-
 // guess size of prefix
 // send in 2 identical blocks - if they appear at block 2 then we know 1 block of prefix
 // keep adding bytes until we detect it
 fn discover_prefix_len<F: Fn(Vec<u8>) -> Vec<u8>>(oracle: F) -> usize {
-    let (bytes, block_num) = (32..48).filter_map(|bytes| {
-        let input = vec![0xAA; bytes];
-        let output = oracle(input);
-        find_repeating_blocks(&output).map(|block_num| (bytes, block_num))
-    }).next().unwrap();
+    let (bytes, block_num) = (32..48)
+        .filter_map(|bytes| {
+            let input = vec![0xAA; bytes];
+            let output = oracle(input);
+            find_repeating_blocks(&output).map(|block_num| (bytes, block_num))
+        })
+        .next()
+        .unwrap();
 
     // after injected `bytes` our duplicate data appeared at block_num * 16
     // so the prefix = (block_num-1)*16 - (bytes - 32)
 
-    (block_num ) * 16 - (bytes - 32)
+    (block_num) * 16 - (bytes - 32)
 }
 
 fn byte_at_a_time<F: Fn(Vec<u8>) -> Vec<u8>>(oracle: F) -> Vec<u8> {
@@ -68,7 +71,6 @@ fn byte_at_a_time<F: Fn(Vec<u8>) -> Vec<u8>>(oracle: F) -> Vec<u8> {
     let prefix_len = discover_prefix_len(&oracle);
 
     println!("{:?}", prefix_len);
-
 
     // use existing code but pad input with enough input to take prefix to full block and remove from output
     let padding_len = 16 - (prefix_len % 16);
@@ -88,14 +90,12 @@ fn byte_at_a_time<F: Fn(Vec<u8>) -> Vec<u8>>(oracle: F) -> Vec<u8> {
 
         stripped_output
     })
-
 }
-
 
 #[cfg(test)]
 mod tests {
-    use crate::block::byte_at_a_time_simple::discover_block_size;
     use super::*;
+    use crate::block::byte_at_a_time_simple::discover_block_size;
 
     #[test]
     fn test_discover_block_size() {

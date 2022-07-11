@@ -111,7 +111,6 @@ mod tests {
     #[test]
     fn test_discover_block_sizes() {
         for i in 1..32 {
-
             let mut key = [0u8; 16];
             rand::thread_rng().fill(&mut key);
 
@@ -123,7 +122,6 @@ mod tests {
             assert_eq!(16, block_size);
             assert_eq!(oracle.suffix.len(), i);
         }
-
     }
 
     #[test]
